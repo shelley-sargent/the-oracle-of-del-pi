@@ -4,7 +4,7 @@ The Oracle of Del-Pi became my first Raspberry Pi-based project after purchasing
 
 I wanted an effortless way to track the weather and lunar cycle, so I created a daily dashboard with the information and later found room to include a motivational quote and small sigil. After finding an old Nook quite literally in my closet, I decided to get it up and running again and root it. I then used Python to develop a script that runs daily via cron and pushes a png displaying the desired information (in a visually appealing manner) to the Nook’s browser using nginx on my local server.
 
-The information is assembled via the 'python-weather' and 'moon' libraries, alongside a manually compiled CSV of quotes and a small image. The png is created using Pillow, and displayed on a Lightning Browser through the ReLaunch OS on an old Nook Glowlight BNRV510.
+The information is assembled via the `python-weather` and `moon` libraries, alongside a manually compiled CSV of quotes and a small image. The png is created using Pillow, and displayed on a Lightning Browser through the ReLaunch OS on an old Nook Glowlight BNRV510.
 
 
 [![daily.png](https://i.postimg.cc/5268BrpW/daily.png)](https://postimg.cc/5XWH1nZs)
