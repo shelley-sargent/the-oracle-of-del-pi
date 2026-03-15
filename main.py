@@ -7,13 +7,13 @@ from moon.dialamoon import Moon
 import ephem
 import python_weather
 import json
+import os
 
 CACHE_PATH = Path(__file__).resolve().parent / "weather_cache.json"
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
-# Nook-ish starter size (tune later to exact screen)
+# set size
 WIDTH = 800
 HEIGHT = 600
 
@@ -40,9 +40,9 @@ def phase_name_from_fraction(frac: float) -> str:
         return "Waning Gibbous"
     elif frac < 0.95:
         return "Waning Crescent"
-    return "New Moon"
 
 def compute_moon_phase_name_for_seattle() -> str:
+    # change lat and lon to your location
     observer = ephem.Observer()
     observer.lat = "47.6062"
     observer.lon = "-122.3321"
@@ -55,24 +55,21 @@ def compute_moon_phase_name_for_seattle() -> str:
     print(f"Phase Name: {name}")
     return name
 
-def generate_todays_moon_image():
-    # Your library is already making the 730x730 moon image.
+def todays_moon_image():
+    # set the moon image
     moon = Moon()
     moon.set_moon_phase()
-    moon.save_to_disk("todays_moon")  # library may append extension itself
+    moon.save_to_disk("todays_moon")
 
-    # If it saves without .png, standardize it:
-    # Many libs write "todays_moon.png" already; this handles both.
-    import os
+    # keeps things consistent if the library writes to .jpg
     if os.path.exists("todays_moon") and not os.path.exists(TODAYS_MOON_PATH):
         os.rename("todays_moon", TODAYS_MOON_PATH)
     elif os.path.exists("todays_moon.jpg") and not os.path.exists(TODAYS_MOON_PATH):
-        # if it writes jpg, keep your loader consistent:
         os.rename("todays_moon.jpg", TODAYS_MOON_PATH)
 
 def prep_moon(path: str, size: int) -> Image.Image:
     moon_img = Image.open(path).convert("L")
-    # Your moon has black bg, invert so it's white bg (e-ink friendly)
+    # Inverts moon image so it's more e-ink friendly (black on white background)
     moon_img = ImageOps.invert(moon_img)
     moon_img = ImageOps.autocontrast(moon_img, cutoff=1)
     moon_img = moon_img.resize((size, size), Image.Resampling.LANCZOS)
@@ -104,9 +101,8 @@ def format_hourly_table(hourly_weather: list[tuple[str, str, str]], rows: int = 
     return lines
 
 def kind_to_short(kind) -> str:
-    # python_weather Kind enum -> short label
+    # cleans up and shortens weather labels
     s = str(kind).split(".")[-1].replace("_", " ").title()
-    # shorten a couple common ones
     return {
         "Very Cloudy": "Cloudy",
         "Partly Cloudy": "Partly",
@@ -130,7 +126,7 @@ async def get_hourly_weather(city: str = "Seattle") -> list[tuple[str, str, str]
         return hourlies
 
 # ---- Sigil helpers ----
-def prep_bw_asset(path: str, target_size: tuple[int, int], invert_if_needed: bool = False) -> Image.Image:
+def prep_sigil_image(path: str, target_size: tuple[int, int], invert_if_needed: bool = False) -> Image.Image:
     """
     Loads an image as grayscale (L), boosts contrast, resizes.
     If your source is black on white and you want white on black (or vice versa), use invert_if_needed.
@@ -143,16 +139,12 @@ def prep_bw_asset(path: str, target_size: tuple[int, int], invert_if_needed: boo
     return img
 
 def paste_with_mask(dst: Image.Image, src: Image.Image, xy: tuple[int, int]):
-    """
-    Pastes grayscale src onto dst using src as its own mask so white stays transparent-ish.
-    Works best when src is black on white.
-    """
-    # Turn white -> transparent mask (white = 0 mask)
+    # Turn white -> transparent mask (white = 0 mask) helps for e-ink
     mask = ImageOps.invert(src)  # black becomes white mask, white becomes black mask
     dst.paste(src, xy, mask)
 
 # ---- Dashboard renderer ----
-def generate_image(moon_phase: str, quote: str, hourly_weather: list[tuple[str, str, str]], sigil_img_path) -> Image.Image:
+def generate_main_image(moon_phase: str, quote: str, hourly_weather: list[tuple[str, str, str]], sigil_img_path) -> Image.Image:
     img = Image.new("L", (WIDTH, HEIGHT), 255)
     draw = ImageDraw.Draw(img)
 
@@ -237,7 +229,7 @@ def generate_image(moon_phase: str, quote: str, hourly_weather: list[tuple[str, 
     if sigil_img_path:
         try:
             sigil_size = 250  # adjust to taste
-            sigil = prep_bw_asset(sigil_img_path, (sigil_size, sigil_size), invert_if_needed=False)
+            sigil = prep_sigil_image(sigil_img_path, (sigil_size, sigil_size), invert_if_needed=False)
             # Place it slightly inset so it looks intentional
             sx = right_bar_x - 60 - sigil_size // 2
             sy = HEIGHT - 170 - sigil_size // 2
@@ -270,7 +262,7 @@ async def main():
 
     # 2) moon phase + moon image
     phase_name = compute_moon_phase_name_for_seattle()
-    generate_todays_moon_image()
+    todays_moon_image()
     print("Moon phase and image generated.")
 
     # 3) quote
@@ -278,7 +270,7 @@ async def main():
     print("Quote chosen.")
 
     # 4) render dashboard
-    img = generate_image(phase_name, quote, hourly, sigil_img_path=SIGIL_IMAGE)
+    img = generate_main_image(phase_name, quote, hourly, sigil_img_path=SIGIL_IMAGE)
     img.save(Path("/var/www/html/daily.png"), "PNG")
     print("Saved dashboard.png")
 
